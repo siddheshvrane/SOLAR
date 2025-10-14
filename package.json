@@ -12,7 +12,7 @@
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
     "@hookform/resolvers": "^3.10.0",
-    "@mui/material": "latest",
+    "@mui/material": "^5.18.0",
     "@mui/material-pigment-css": "latest",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
@@ -52,7 +52,7 @@
     "geist": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "15.2.4",
+    "next": "^15.5.5",
     "next-themes": "^0.4.6",
     "react": "^19",
     "react-day-picker": "9.8.0",
@@ -64,7 +64,7 @@
     "swr": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "vaul": "^0.9.9",
+    "vaul": "^1.1.2",
     "zod": "3.25.76"
   },
   "devDependencies": {

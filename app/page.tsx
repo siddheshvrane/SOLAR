@@ -18,6 +18,7 @@ import {
   TableContainer,
   Divider,
   Skeleton,
+  Chip,
 } from "@mui/material"
 
 // Recharts
@@ -153,225 +154,512 @@ export default function Page() {
   const merged = mergeTimeSeries(solar, wind)
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ py: 4, px: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={600}>
-          Renewable Energy Dashboard
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Live metrics from Firebase Firestore (Solar & Wind)
-        </Typography>
-      </Box>
-
-      {/* Section 1: Solar Latest */}
-      <SectionTitle title="Solar - Latest Metrics" />
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <MetricCard title="Latest Solar Current (A)" value={loading ? undefined : latestSolar?.Current} />
-        <MetricCard title="Latest Solar Voltage (V)" value={loading ? undefined : latestSolar?.Voltage} />
-        <MetricCard title="Latest Solar Angle (°)" value={loading ? undefined : latestSolar?.Angle} />
-        <MetricCard title="Light Intensity (LDR)" value={loading ? undefined : latestSolar?.LDR} />
-      </Grid>
-
-      {/* Section 2: Wind Latest */}
-      <SectionTitle title="Wind - Latest Metrics" />
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <MetricCard title="Latest Wind Current (A)" value={loading ? undefined : latestWind?.Current} />
-        <MetricCard title="Latest Wind Voltage (V)" value={loading ? undefined : latestWind?.Voltage} />
-        <MetricCard title="Latest Wind Angle (°)" value={loading ? undefined : latestWind?.Angle} />
-      </Grid>
-
-      {/* Section 3: Tables */}
-      <SectionTitle title="Data Tables" />
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Solar
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            {loading ? (
-              <TableSkeleton />
-            ) : (
-              <TableContainer sx={{ maxHeight: 420 }}>
-                <Table stickyHeader size="small" aria-label="solar table">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell align="right">Current (A)</TableCell>
-                      <TableCell align="right">Voltage (V)</TableCell>
-                      <TableCell align="right">Angle (°)</TableCell>
-                      <TableCell align="right">LDR</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {solar?.map((row) => (
-                      <TableRow key={row.id} hover>
-                        <TableCell>{formatDate(row.Date)}</TableCell>
-                        <TableCell align="right">{row.Current}</TableCell>
-                        <TableCell align="right">{row.Voltage}</TableCell>
-                        <TableCell align="right">{row.Angle}</TableCell>
-                        <TableCell align="right">{row.LDR !== undefined ? row.LDR : "-"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Wind
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            {loading ? (
-              <TableSkeleton />
-            ) : (
-              <TableContainer sx={{ maxHeight: 420 }}>
-                <Table stickyHeader size="small" aria-label="wind table">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell align="right">Current (A)</TableCell>
-                      <TableCell align="right">Voltage (V)</TableCell>
-                      <TableCell align="right">Angle (°)</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {wind?.map((row) => (
-                      <TableRow key={row.id} hover>
-                        <TableCell>{formatDate(row.Date)}</TableCell>
-                        <TableCell align="right">{row.Current}</TableCell>
-                        <TableCell align="right">{row.Voltage}</TableCell>
-                        <TableCell align="right">{row.Angle}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Section 4: Charts */}
-      <SectionTitle title="Trends" />
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ p: 2, height: 360 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Current vs Time (Solar & Wind)
-            </Typography>
-            {loading ? (
-              <Skeleton variant="rounded" width="100%" height={290} />
-            ) : (
-              <Box sx={{ width: "100%", height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={merged} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="solarCurrent"
-                      name="Solar Current"
-                      stroke="hsl(var(--chart-1))"
-                      dot={false}
-                      connectNulls
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="windCurrent"
-                      name="Wind Current"
-                      stroke="hsl(var(--chart-2))"
-                      dot={false}
-                      connectNulls
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#fafbfd" }}>
+      <Container maxWidth={false} disableGutters sx={{ py: 5, px: { xs: 2, sm: 4, md: 6 } }}>
+        {/* Header */}
+        <Box sx={{ mb: 5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+            <Box 
+              sx={{ 
+                width: 48, 
+                height: 48, 
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, #9bf6ff 0%, #caffbf 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 12px rgba(155, 246, 255, 0.3)"
+              }}
+            >
+              <i className="fas fa-solar-panel" style={{ fontSize: 24, color: "#fff" }}></i>
+            </Box>
+            <Box>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontWeight: 600, 
+                  color: "#2d3748",
+                  letterSpacing: "-0.02em"
+                }}
+              >
+                Renewable Energy Dashboard
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
+                <i className="fas fa-circle" style={{ fontSize: 8, color: "#48bb78" }}></i>
+                <Typography variant="body2" sx={{ color: "#718096", fontWeight: 400 }}>
+                  Live monitoring • Auto-refresh every 30s
+                </Typography>
               </Box>
-            )}
-          </Paper>
-        </Grid>
+            </Box>
+          </Box>
+        </Box>
 
-        <Grid item xs={12} md={6}>
-          <Paper variant="outlined" sx={{ p: 2, height: 360 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Angle vs Time (Solar & Wind)
+        {/* Solar Section */}
+        <Box sx={{ mb: 5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+            <i className="fas fa-sun" style={{ fontSize: 20, color: "#ffd6a5" }}></i>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#2d3748" }}>
+              Solar Energy
             </Typography>
-            {loading ? (
-              <Skeleton variant="rounded" width="100%" height={290} />
-            ) : (
-              <Box sx={{ width: "100%", height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={merged} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="solarAngle"
-                      name="Solar Angle"
-                      stroke="hsl(var(--chart-3))"
-                      dot={false}
-                      connectNulls
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="windAngle"
-                      name="Wind Angle"
-                      stroke="hsl(var(--chart-5))"
-                      dot={false}
-                      connectNulls
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+            <Chip 
+              label="Active" 
+              size="small" 
+              sx={{ 
+                bgcolor: "#e6fffa", 
+                color: "#319795",
+                fontWeight: 500,
+                fontSize: "0.75rem"
+              }} 
+            />
+          </Box>
+          <Grid container spacing={2.5}>
+            <MetricCard 
+              title="Current" 
+              value={loading ? undefined : latestSolar?.Current} 
+              unit="A"
+              icon="fa-bolt"
+              color="#ffd6a5"
+            />
+            <MetricCard 
+              title="Voltage" 
+              value={loading ? undefined : latestSolar?.Voltage} 
+              unit="V"
+              icon="fa-plug"
+              color="#ffd6a5"
+            />
+            <MetricCard 
+              title="Panel Angle" 
+              value={loading ? undefined : latestSolar?.Angle} 
+              unit="°"
+              icon="fa-angles-up"
+              color="#ffd6a5"
+            />
+            <MetricCard 
+              title="Light Intensity" 
+              value={loading ? undefined : latestSolar?.LDR} 
+              unit="LDR"
+              icon="fa-lightbulb"
+              color="#ffd6a5"
+            />
+          </Grid>
+        </Box>
+
+        {/* Wind Section */}
+        <Box sx={{ mb: 5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+            <i className="fas fa-wind" style={{ fontSize: 20, color: "#caffbf" }}></i>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#2d3748" }}>
+              Wind Energy
+            </Typography>
+            <Chip 
+              label="Active" 
+              size="small" 
+              sx={{ 
+                bgcolor: "#e6fffa", 
+                color: "#319795",
+                fontWeight: 500,
+                fontSize: "0.75rem"
+              }} 
+            />
+          </Box>
+          <Grid container spacing={2.5}>
+            <MetricCard 
+              title="Current" 
+              value={loading ? undefined : latestWind?.Current} 
+              unit="A"
+              icon="fa-bolt"
+              color="#caffbf"
+            />
+            <MetricCard 
+              title="Voltage" 
+              value={loading ? undefined : latestWind?.Voltage} 
+              unit="V"
+              icon="fa-plug"
+              color="#caffbf"
+            />
+            <MetricCard 
+              title="Turbine Angle" 
+              value={loading ? undefined : latestWind?.Angle} 
+              unit="°"
+              icon="fa-angles-up"
+              color="#caffbf"
+            />
+          </Grid>
+        </Box>
+
+        {/* Charts Section */}
+        <Box sx={{ mb: 5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+            <i className="fas fa-chart-line" style={{ fontSize: 20, color: "#9bf6ff" }}></i>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#2d3748" }}>
+              Performance Trends
+            </Typography>
+          </Box>
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} lg={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 3, 
+                  height: 400,
+                  borderRadius: "16px",
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff"
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: "#2d3748" }}>
+                  Current Output Over Time
+                </Typography>
+                {loading ? (
+                  <Skeleton variant="rounded" width="100%" height={320} sx={{ borderRadius: "12px" }} />
+                ) : (
+                  <Box sx={{ width: "100%", height: 320 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={merged} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis 
+                          dataKey="label" 
+                          tick={{ fontSize: 11, fill: "#718096" }} 
+                          interval="preserveStartEnd"
+                          stroke="#cbd5e0"
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: "#718096" }} stroke="#cbd5e0" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: "8px", 
+                            border: "1px solid #e2e8f0",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                          }} 
+                        />
+                        <Legend wrapperStyle={{ fontSize: "12px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="solarCurrent"
+                          name="Solar Current"
+                          stroke="#ffd6a5"
+                          strokeWidth={2.5}
+                          dot={false}
+                          connectNulls
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="windCurrent"
+                          name="Wind Current"
+                          stroke="#caffbf"
+                          strokeWidth={2.5}
+                          dot={false}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            <Grid item xs={12} lg={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 3, 
+                  height: 400,
+                  borderRadius: "16px",
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff"
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: "#2d3748" }}>
+                  Angle Positioning Over Time
+                </Typography>
+                {loading ? (
+                  <Skeleton variant="rounded" width="100%" height={320} sx={{ borderRadius: "12px" }} />
+                ) : (
+                  <Box sx={{ width: "100%", height: 320 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={merged} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis 
+                          dataKey="label" 
+                          tick={{ fontSize: 11, fill: "#718096" }} 
+                          interval="preserveStartEnd"
+                          stroke="#cbd5e0"
+                        />
+                        <YAxis tick={{ fontSize: 11, fill: "#718096" }} stroke="#cbd5e0" />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: "8px", 
+                            border: "1px solid #e2e8f0",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                          }} 
+                        />
+                        <Legend wrapperStyle={{ fontSize: "12px" }} />
+                        <Line
+                          type="monotone"
+                          dataKey="solarAngle"
+                          name="Solar Angle"
+                          stroke="#9bf6ff"
+                          strokeWidth={2.5}
+                          dot={false}
+                          connectNulls
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="windAngle"
+                          name="Wind Angle"
+                          stroke="#bdb2ff"
+                          strokeWidth={2.5}
+                          dot={false}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* Data Tables */}
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+            <i className="fas fa-table" style={{ fontSize: 20, color: "#bdb2ff" }}></i>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#2d3748" }}>
+              Historical Data
+            </Typography>
+          </Box>
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} lg={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 3,
+                  borderRadius: "16px",
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff"
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <i className="fas fa-sun" style={{ fontSize: 16, color: "#ffd6a5" }}></i>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#2d3748" }}>
+                    Solar Records
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2, borderColor: "#e2e8f0" }} />
+                {loading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer sx={{ maxHeight: 420 }}>
+                    <Table stickyHeader size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Date & Time
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Current (A)
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Voltage (V)
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Angle (°)
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            LDR
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {solar?.map((row, idx) => (
+                          <TableRow 
+                            key={row.id} 
+                            hover
+                            sx={{ 
+                              "&:hover": { bgcolor: "#f7fafc" },
+                              bgcolor: idx % 2 === 0 ? "#ffffff" : "#fafbfd"
+                            }}
+                          >
+                            <TableCell sx={{ color: "#4a5568", fontSize: "0.875rem" }}>
+                              {formatDate(row.Date)}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Current}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Voltage}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Angle}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.LDR !== undefined ? row.LDR : "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </Paper>
+            </Grid>
+            
+            <Grid item xs={12} lg={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 3,
+                  borderRadius: "16px",
+                  border: "1px solid #e2e8f0",
+                  bgcolor: "#ffffff"
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <i className="fas fa-wind" style={{ fontSize: 16, color: "#caffbf" }}></i>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#2d3748" }}>
+                    Wind Records
+                  </Typography>
+                </Box>
+                <Divider sx={{ mb: 2, borderColor: "#e2e8f0" }} />
+                {loading ? (
+                  <TableSkeleton />
+                ) : (
+                  <TableContainer sx={{ maxHeight: 420 }}>
+                    <Table stickyHeader size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Date & Time
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Current (A)
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Voltage (V)
+                          </TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f7fafc", color: "#2d3748" }}>
+                            Angle (°)
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {wind?.map((row, idx) => (
+                          <TableRow 
+                            key={row.id} 
+                            hover
+                            sx={{ 
+                              "&:hover": { bgcolor: "#f7fafc" },
+                              bgcolor: idx % 2 === 0 ? "#ffffff" : "#fafbfd"
+                            }}
+                          >
+                            <TableCell sx={{ color: "#4a5568", fontSize: "0.875rem" }}>
+                              {formatDate(row.Date)}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Current}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Voltage}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
+                              {row.Angle}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+      </Container>
+    </Box>
   )
 }
 
 // UI sub-components
-
-function SectionTitle({ title }: { title: string }) {
-  return (
-    <Typography variant="h6" sx={{ mb: 1.5, mt: 2, fontWeight: 600 }}>
-      {title}
-    </Typography>
-  )
-}
-
-function MetricCard({ title, value }: { title: string; value?: number }) {
+function MetricCard({ 
+  title, 
+  value, 
+  unit, 
+  icon, 
+  color 
+}: { 
+  title: string
+  value?: number
+  unit: string
+  icon: string
+  color: string
+}) {
   return (
     <Grid item xs={12} sm={6} md={3}>
       <Paper
-        variant="outlined"
+        elevation={0}
         sx={{
-          p: 2,
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.5,
+          p: 3,
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          bgcolor: "#ffffff",
           height: "100%",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.06)"
+          }
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          {title}
-        </Typography>
-        {value === undefined ? (
-          <Skeleton width={120} height={32} />
-        ) : (
-          <Typography variant="h5" fontWeight={700}>
-            {value}
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 2 }}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: "#718096", 
+              fontWeight: 500,
+              fontSize: "0.875rem"
+            }}
+          >
+            {title}
           </Typography>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              bgcolor: `${color}20`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+          >
+            <i className={`fas ${icon}`} style={{ fontSize: 18, color: color }}></i>
+          </Box>
+        </Box>
+        {value === undefined ? (
+          <Skeleton width="60%" height={40} sx={{ borderRadius: "8px" }} />
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                fontWeight: 700, 
+                color: "#2d3748",
+                letterSpacing: "-0.02em"
+              }}
+            >
+              {value.toFixed(2)}
+            </Typography>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                color: "#718096", 
+                fontWeight: 500,
+                fontSize: "1rem"
+              }}
+            >
+              {unit}
+            </Typography>
+          </Box>
         )}
       </Paper>
     </Grid>
@@ -381,11 +669,16 @@ function MetricCard({ title, value }: { title: string; value?: number }) {
 function TableSkeleton() {
   return (
     <Box>
-      <Skeleton height={32} />
-      <Skeleton height={32} />
-      <Skeleton height={32} />
-      <Skeleton height={32} />
-      <Skeleton height={32} />
+      {[...Array(5)].map((_, i) => (
+        <Skeleton 
+          key={i} 
+          height={48} 
+          sx={{ 
+            mb: 1, 
+            borderRadius: "8px" 
+          }} 
+        />
+      ))}
     </Box>
   )
 }
