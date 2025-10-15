@@ -44,47 +44,90 @@ type WindRecord = {
 
 // Firestore fetchers
 async function fetchSolar(): Promise<SolarRecord[]> {
-  const q = query(collection(db, "Solar"), orderBy("Date", "asc"))
+  const q = query(collection(db, "solarWindData"), orderBy("Solar.Date", "asc"))
   const snap = await getDocs(q)
+
   return snap.docs.map((d) => {
     const data = d.data() as {
-      Angle: number
-      Current: number
-      Voltage: number
-      LDR?: number
-      Date: Timestamp | Date
+      Solar: {
+        Angle: number
+        Current: number
+        Voltage: number
+        LDR?: number
+        Date: Timestamp | Date | string
+      }
     }
-    const dt = data.Date instanceof Timestamp ? data.Date.toDate() : new Date(data.Date)
+
+    const solar = data.Solar || {}
+
+    const dt =
+      solar.Date instanceof Timestamp
+        ? solar.Date.toDate()
+        : typeof solar.Date === "string"
+        ? new Date(solar.Date)
+        : (solar.Date as Date)
+
     return {
       id: d.id,
-      Angle: Number(data.Angle ?? 0),
-      Current: Number(data.Current ?? 0),
-      Voltage: Number(data.Voltage ?? 0),
-      LDR: data.LDR !== undefined ? Number(data.LDR) : undefined,
+      Angle: Number(solar.Angle ?? 0),
+      Current: Number(solar.Current ?? 0),
+      Voltage: Number(solar.Voltage ?? 0),
+      LDR: solar.LDR !== undefined ? Number(solar.LDR) : undefined,
       Date: dt,
     }
   })
 }
-
 async function fetchWind(): Promise<WindRecord[]> {
-  const q = query(collection(db, "Wind"), orderBy("Date", "asc"))
+  const q = query(collection(db, "solarWindData"), orderBy("Wind.Date", "asc"))
   const snap = await getDocs(q)
+
   return snap.docs.map((d) => {
     const data = d.data() as {
-      Angle: number
-      Current: number
-      Voltage: number
-      Date: Timestamp | Date
+      Wind: {
+        Angle: number
+        Current: number
+        Voltage: number
+        Date: Timestamp | Date | string
+      }
     }
-    const dt = data.Date instanceof Timestamp ? data.Date.toDate() : new Date(data.Date)
+
+    const wind = data.Wind || {}
+
+    // Handle Timestamp, string, or Date
+    const dt =
+      wind.Date instanceof Timestamp
+        ? wind.Date.toDate()
+        : typeof wind.Date === "string"
+        ? new Date(wind.Date)
+        : (wind.Date as Date)
+
     return {
       id: d.id,
-      Angle: Number(data.Angle ?? 0),
-      Current: Number(data.Current ?? 0),
-      Voltage: Number(data.Voltage ?? 0),
+      Angle: Number(wind.Angle ?? 0),
+      Current: Number(wind.Current ?? 0),
+      Voltage: Number(wind.Voltage ?? 0),
       Date: dt,
     }
   })
+}
+function parseDate(value: any): Date {
+  if (value instanceof Timestamp) return value.toDate()
+  if (value instanceof Date) return value
+
+  // Handle formatted strings like "October 10, 2025 at 2:16:38 PM UTC+5:30"
+  if (typeof value === "string") {
+    // Remove the " at " to make it more Date-friendly
+    const clean = value.replace(" at ", " ")
+    const parsed = Date.parse(clean)
+    if (!isNaN(parsed)) return new Date(parsed)
+
+    // If still fails, fallback: just return now to avoid "Invalid Date"
+    console.warn("⚠️ Could not parse date:", value)
+    return new Date()
+  }
+
+  // Fallback for anything weird
+  return new Date()
 }
 
 // Helpers
