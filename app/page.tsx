@@ -1,6 +1,6 @@
 "use client"
 import useSWR from "swr"
-import { collection, getDocs, orderBy, query, Timestamp } from "firebase/firestore"
+import { collection, getDocs, orderBy, query } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 // MUI
@@ -31,7 +31,7 @@ type SolarRecord = {
   Current: number
   Voltage: number
   LDR?: number
-  Date: Date
+  Date: string
 }
 
 type WindRecord = {
@@ -39,7 +39,7 @@ type WindRecord = {
   Angle: number
   Current: number
   Voltage: number
-  Date: Date
+  Date: string
 }
 
 // Firestore fetchers
@@ -54,18 +54,11 @@ async function fetchSolar(): Promise<SolarRecord[]> {
         Current: number
         Voltage: number
         LDR?: number
-        Date: Timestamp | Date | string
+        Date: string
       }
     }
 
     const solar = data.Solar || {}
-
-    const dt =
-      solar.Date instanceof Timestamp
-        ? solar.Date.toDate()
-        : typeof solar.Date === "string"
-        ? new Date(solar.Date)
-        : (solar.Date as Date)
 
     return {
       id: d.id,
@@ -73,10 +66,11 @@ async function fetchSolar(): Promise<SolarRecord[]> {
       Current: Number(solar.Current ?? 0),
       Voltage: Number(solar.Voltage ?? 0),
       LDR: solar.LDR !== undefined ? Number(solar.LDR) : undefined,
-      Date: dt,
+      Date: String(solar.Date ?? ""),
     }
   })
 }
+
 async function fetchWind(): Promise<WindRecord[]> {
   const q = query(collection(db, "solarWindData"), orderBy("Wind.Date", "asc"))
   const snap = await getDocs(q)
@@ -87,63 +81,31 @@ async function fetchWind(): Promise<WindRecord[]> {
         Angle: number
         Current: number
         Voltage: number
-        Date: Timestamp | Date | string
+        Date: string
       }
     }
 
     const wind = data.Wind || {}
-
-    // Handle Timestamp, string, or Date
-    const dt =
-      wind.Date instanceof Timestamp
-        ? wind.Date.toDate()
-        : typeof wind.Date === "string"
-        ? new Date(wind.Date)
-        : (wind.Date as Date)
 
     return {
       id: d.id,
       Angle: Number(wind.Angle ?? 0),
       Current: Number(wind.Current ?? 0),
       Voltage: Number(wind.Voltage ?? 0),
-      Date: dt,
+      Date: String(wind.Date ?? ""),
     }
   })
 }
-function parseDate(value: any): Date {
-  if (value instanceof Timestamp) return value.toDate()
-  if (value instanceof Date) return value
-
-  // Handle formatted strings like "October 10, 2025 at 2:16:38 PM UTC+5:30"
-  if (typeof value === "string") {
-    // Remove the " at " to make it more Date-friendly
-    const clean = value.replace(" at ", " ")
-    const parsed = Date.parse(clean)
-    if (!isNaN(parsed)) return new Date(parsed)
-
-    // If still fails, fallback: just return now to avoid "Invalid Date"
-    console.warn("⚠️ Could not parse date:", value)
-    return new Date()
-  }
-
-  // Fallback for anything weird
-  return new Date()
-}
 
 // Helpers
-function formatDate(d?: Date) {
-  if (!d) return "-"
-  return d.toLocaleString()
-}
-
-function latestItem<T extends { Date: Date }>(arr?: T[]) {
+function latestItem<T extends { Date: string }>(arr?: T[]) {
   if (!arr || arr.length === 0) return undefined
   return arr[arr.length - 1]
 }
 
 // Merge two series by time for Recharts
 type MergedPoint = {
-  time: number
+  time: string
   label: string
   solarCurrent?: number | null
   windCurrent?: number | null
@@ -152,14 +114,14 @@ type MergedPoint = {
 }
 
 function mergeTimeSeries(solar: SolarRecord[] | undefined, wind: WindRecord[] | undefined): MergedPoint[] {
-  const map = new Map<number, MergedPoint>()
+  const map = new Map<string, MergedPoint>()
 
   if (solar) {
     for (const s of solar) {
-      const t = s.Date.getTime()
+      const t = s.Date
       const existing = map.get(t) || {
         time: t,
-        label: s.Date.toLocaleTimeString(),
+        label: t,
       }
       existing.solarCurrent = s.Current
       existing.solarAngle = s.Angle
@@ -169,10 +131,10 @@ function mergeTimeSeries(solar: SolarRecord[] | undefined, wind: WindRecord[] | 
 
   if (wind) {
     for (const w of wind) {
-      const t = w.Date.getTime()
+      const t = w.Date
       const existing = map.get(t) || {
         time: t,
-        label: w.Date.toLocaleTimeString(),
+        label: t,
       }
       existing.windCurrent = w.Current
       existing.windAngle = w.Angle
@@ -180,8 +142,10 @@ function mergeTimeSeries(solar: SolarRecord[] | undefined, wind: WindRecord[] | 
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => a.time - b.time)
+  // Sorting optional since these are now strings
+  return Array.from(map.values())
 }
+
 
 export default function Page() {
   const { data: solar, isLoading: loadingSolar } = useSWR("solar-all", fetchSolar, {
@@ -524,7 +488,7 @@ export default function Page() {
                             }}
                           >
                             <TableCell sx={{ color: "#4a5568", fontSize: "0.875rem" }}>
-                              {formatDate(row.Date)}
+                              {String(row.Date)}
                             </TableCell>
                             <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
                               {row.Current}
@@ -596,7 +560,7 @@ export default function Page() {
                             }}
                           >
                             <TableCell sx={{ color: "#4a5568", fontSize: "0.875rem" }}>
-                              {formatDate(row.Date)}
+                              {(row.Date)}
                             </TableCell>
                             <TableCell align="right" sx={{ color: "#2d3748", fontWeight: 500 }}>
                               {row.Current}
