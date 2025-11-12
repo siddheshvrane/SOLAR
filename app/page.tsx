@@ -1,6 +1,6 @@
 "use client"
 import useSWR from "swr"
-import { collection, getDocs, orderBy, query } from "firebase/firestore"
+import { collection, getDocs, orderBy,doc, query, addDoc, deleteDoc,limit } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
 // MUI
@@ -42,61 +42,208 @@ type WindRecord = {
   Date: string
 }
 
-// Firestore fetchers
-async function fetchSolar(): Promise<SolarRecord[]> {
-  const q = query(collection(db, "solarWindData"), orderBy("Solar.Date", "asc"))
-  const snap = await getDocs(q)
+let first_solar_fetch=true
+let first_wind_fetch=true
 
-  return snap.docs.map((d) => {
-    const data = d.data() as {
-      Solar: {
-        Angle: number
-        Current: number
-        Voltage: number
-        LDR?: number
-        Date: string
+let allSolarData: SolarRecord[] = []
+let allWindData: WindRecord[] = []
+async function generateSampleData() {
+  const colRef = collection(db, "solarWindData");
+
+  // 1️⃣ Delete existing data
+  try {
+    const snap = await getDocs(colRef);
+    for (const d of snap.docs) {
+      await deleteDoc(doc(db, "solarWindData", d.id));
+    }
+    console.log("Existing data cleared!");
+  } catch (err) {
+    console.error("Error clearing old data:", err);
+  }
+
+  const startDate = new Date("2025-10-11T00:00:00+05:30"); // Oct 11, 2025
+  const days = 10;
+  const entriesPerDay = 48; // 30-min interval
+
+  for (let d = 0; d < days; d++) {
+    for (let i = 0; i < entriesPerDay; i++) {
+      try {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + d);
+        date.setMinutes(i * 30);
+
+        const hour = date.getHours();
+
+        // Solar angle logic
+        let sunAngle = 0;
+        if (hour >= 6 && hour <= 18) {
+          // Morning: 6-12, Evening: 12-18
+          if (hour < 12) {
+            sunAngle = 10 + ((hour - 6) / 6) * (90 - 10); // ramp from 10->90
+          } else {
+            sunAngle = 90 + ((hour - 12) / 6) * (160 - 90); // ramp from 90->160
+          }
+          sunAngle += Math.random() * 4 - 2; // noise ±2
+        } else {
+          sunAngle = Math.random() * 5; // night ~0-5°
+        }
+
+        // Solar current & LDR
+        const solarCurrent = hour >= 6 && hour <= 18 ? Math.round(Math.random() * 10 + 30) : 0;
+        const voltage = hour >= 6 && hour <= 18 ? Math.round(Math.random() * 5 + 30) : 0;
+        const ldr = hour >= 6 && hour <= 18 ? Math.round(sunAngle * 12 + Math.random() * 30) : 0;
+
+        // Wind data
+        const windAngle = Math.floor(Math.random() * 360);
+        const windCurrent = Math.round(Math.random() * 5 + 30); // 0-10, can spike at night
+        const windVoltage = Math.round(Math.random() * 5 + 25);
+
+        await addDoc(colRef, {
+          Solar: {
+            Angle: Math.round(sunAngle),
+            Current: solarCurrent,
+            Voltage: voltage,
+            LDR: ldr,
+            Date: date.toLocaleString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "numeric",
+              second: "numeric",
+              hour12: true,
+              timeZoneName: "short",
+            }),
+          },
+          Wind: {
+            Angle: windAngle,
+            Current: windCurrent,
+            Voltage: windVoltage,
+            Date: date.toLocaleString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "numeric",
+              second: "numeric",
+              hour12: true,
+              timeZoneName: "short",
+            }),
+          },
+        });
+      } catch (err) {
+        console.error("Error adding document:", err);
       }
     }
+  }
 
-    const solar = data.Solar || {}
+  console.log("Sample data generated!");
+}
+// Firestore fetchers
 
-    return {
-      id: d.id,
-      Angle: Number(solar.Angle ?? 0),
-      Current: Number(solar.Current ?? 0),
-      Voltage: Number(solar.Voltage ?? 0),
-      LDR: solar.LDR !== undefined ? Number(solar.LDR) : undefined,
-      Date: String(solar.Date ?? ""),
+async function fetchSolar(): Promise<SolarRecord[]> {
+  try {
+    console.log("fetch solar")
+    
+    let snap;
+    if (first_solar_fetch) {
+      // Fetch entire collection
+      const q = query(collection(db, "solarWindData"), orderBy("Solar.Date", "asc"))
+      snap = await getDocs(q)
+      first_solar_fetch = false
+    } else {
+      // Fetch only the latest document
+      const q = query(collection(db, "solarWindData"), orderBy("Solar.Date", "desc"), limit(1))
+      snap = await getDocs(q)
     }
-  })
+
+    const newData = snap.docs.map((d) => {
+      const data = d.data() as {
+        Solar: {
+          Angle: number
+          Current: number
+          Voltage: number
+          LDR?: number
+          Date: string
+        }
+      }
+      const solar = data.Solar || {}
+      return {
+        id: d.id,
+        Angle: Number(solar.Angle ?? 0),
+        Current: Number(solar.Current ?? 0),
+        Voltage: Number(solar.Voltage ?? 0),
+        LDR: solar.LDR !== undefined ? Number(solar.LDR) : undefined,
+        Date: String(solar.Date ?? ""),
+      }
+    })
+
+    // Append new rows to the global array
+    if (!first_solar_fetch) {
+      allSolarData.push(...newData.reverse()) // reverse because we fetched latest first
+    } else {
+      allSolarData = newData
+    }
+
+    console.log("fetched rows:", newData.length)
+    return allSolarData
+  } catch (err) {
+    console.error("fetchSolar error:", err)
+    return allSolarData
+  }
 }
 
 async function fetchWind(): Promise<WindRecord[]> {
-  const q = query(collection(db, "solarWindData"), orderBy("Wind.Date", "asc"))
-  const snap = await getDocs(q)
+  try {
+    console.log("fetch wind")
 
-  return snap.docs.map((d) => {
-    const data = d.data() as {
-      Wind: {
-        Angle: number
-        Current: number
-        Voltage: number
-        Date: string
+    let snap;
+    if (first_wind_fetch) {
+      // Fetch entire collection
+      const q = query(collection(db, "solarWindData"), orderBy("Wind.Date", "asc"))
+      snap = await getDocs(q)
+      first_wind_fetch = false
+    } else {
+      // Fetch only the latest document
+      const q = query(collection(db, "solarWindData"), orderBy("Wind.Date", "desc"), limit(1))
+      snap = await getDocs(q)
+    }
+
+    const newData = snap.docs.map((d) => {
+      const data = d.data() as {
+        Wind: {
+          Angle: number
+          Current: number
+          Voltage: number
+          Date: string
+        }
       }
+
+      const wind = data.Wind || {}
+
+      return {
+        id: d.id,
+        Angle: Number(wind.Angle ?? 0),
+        Current: Number(wind.Current ?? 0),
+        Voltage: Number(wind.Voltage ?? 0),
+        Date: String(wind.Date ?? ""),
+      }
+    })
+
+    // Append new rows to global array
+    if (!first_wind_fetch) {
+      allWindData.push(...newData.reverse()) // reverse because latest first
+    } else {
+      allWindData = newData
     }
 
-    const wind = data.Wind || {}
-
-    return {
-      id: d.id,
-      Angle: Number(wind.Angle ?? 0),
-      Current: Number(wind.Current ?? 0),
-      Voltage: Number(wind.Voltage ?? 0),
-      Date: String(wind.Date ?? ""),
-    }
-  })
+    console.log("fetched wind rows:", newData.length)
+    return allWindData
+  } catch (err) {
+    console.error("fetchWind error:", err)
+    return allWindData
+  }
 }
-
 // Helpers
 function latestItem<T extends { Date: string }>(arr?: T[]) {
   if (!arr || arr.length === 0) return undefined
@@ -113,53 +260,72 @@ type MergedPoint = {
   windAngle?: number | null
 }
 
+
+function parseCustomDate(str: string): Date {
+  try {
+    // Replace " at" with a space, keep the timezone
+    const cleaned = str.replace(" at", " ")
+    const d = new Date(cleaned)
+    return d
+  } catch {
+    return new Date(NaN) // Invalid fallback
+  }
+}
+
 function mergeTimeSeries(solar: SolarRecord[] | undefined, wind: WindRecord[] | undefined): MergedPoint[] {
-  const map = new Map<string, MergedPoint>()
+  const merged: MergedPoint[] = []
 
-  if (solar) {
-    for (const s of solar) {
-      const t = s.Date
-      const existing = map.get(t) || {
-        time: t,
-        label: t,
-      }
-      existing.solarCurrent = s.Current
-      existing.solarAngle = s.Angle
-      map.set(t, existing)
-    }
+  // Take last 48 entries
+  const solarSlice = solar ? solar.slice(-48) : []
+  const windSlice = wind ? wind.slice(-48) : []
+
+  // Helper to extract time from your string
+  function extractTime(str: string): string {
+    // split at "at" and take second part
+    const afterAt = str.split("at")[1] || ""
+    // split at "UTC" and take first part, then trim spaces
+    return afterAt.split("UTC")[0].trim()
   }
 
-  if (wind) {
-    for (const w of wind) {
-      const t = w.Date
-      const existing = map.get(t) || {
-        time: t,
-        label: t,
-      }
-      existing.windCurrent = w.Current
-      existing.windAngle = w.Angle
-      map.set(t, existing)
-    }
-  }
+  // Merge Solar
+  solarSlice.forEach((s, i) => {
+    const timeLabel = extractTime(s.Date)
 
-  // Sorting optional since these are now strings
-  return Array.from(map.values())
+    merged[i] = {
+      time: s.Date,
+      label: timeLabel, // only time for x-axis
+      solarCurrent: s.Current,
+      solarAngle: s.Angle,
+    }
+  })
+
+  // Merge Wind into same points
+  windSlice.forEach((w, i) => {
+    if (!merged[i]) {
+      const timeLabel = extractTime(w.Date)
+      merged[i] = { time: w.Date, label: timeLabel }
+    }
+    merged[i].windCurrent = w.Current
+    merged[i].windAngle = w.Angle
+  })
+
+  return merged
 }
 
 
 export default function Page() {
   const { data: solar, isLoading: loadingSolar } = useSWR("solar-all", fetchSolar, {
-    refreshInterval: 30000,
+    refreshInterval: 300000,
   })
   const { data: wind, isLoading: loadingWind } = useSWR("wind-all", fetchWind, {
-    refreshInterval: 30000,
+    refreshInterval: 300000,
   })
 
   const loading = loadingSolar || loadingWind
   const latestSolar = latestItem(solar)
   const latestWind = latestItem(wind)
   const merged = mergeTimeSeries(solar, wind)
-
+console.log("merged",merged)
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#fafbfd" }}>
       <Container maxWidth={false} disableGutters sx={{ py: 5, px: { xs: 2, sm: 4, md: 6 } }}>
